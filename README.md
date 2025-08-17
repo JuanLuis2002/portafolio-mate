@@ -57,5 +57,5 @@ Este proyecto fue creado con:
 
 1. Clonar el repositorio:
    ```bash
-   git clone https://github.com/tu-usuario/portafolio-mate4.git
-   cd portafolio-mate4
+   git clone https://github.com/tu-usuario/portafolio-mate.git
+   cd portafolio-mate
