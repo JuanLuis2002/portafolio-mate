@@ -1,5 +1,7 @@
 "use client"
 
+import type React from "react"
+
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -24,6 +26,9 @@ import {
   Clock,
   Save,
   X,
+  ZoomIn,
+  ZoomOut,
+  RotateCcw,
 } from "lucide-react"
 
 interface Section {
@@ -82,6 +87,11 @@ export default function EducationalSystem() {
   const [newSectionWeekId, setNewSectionWeekId] = useState("")
   const [newSectionImages, setNewSectionImages] = useState<string[]>([])
   const [newSectionImageUrl, setNewSectionImageUrl] = useState("")
+
+  const [zoomLevel, setZoomLevel] = useState(1)
+  const [imagePosition, setImagePosition] = useState({ x: 0, y: 0 })
+  const [isDragging, setIsDragging] = useState(false)
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
 
   const createWeek = (recordId: string) => {
     setData((prev) => ({
@@ -276,21 +286,40 @@ export default function EducationalSystem() {
     setEditingSectionImages(editingSectionImages.filter((_, i) => i !== index))
   }
 
-  const openImageModal = (images: string[], startIndex: number) => {
-    const validImages = images.filter((img) => img && img.trim() !== "")
-    if (validImages.length === 0) return
-
-    setSelectedImages(validImages)
-    setCurrentImageIndex(startIndex)
-    setIsImageModalOpen(true)
+  const zoomIn = () => {
+    setZoomLevel((prev) => Math.min(prev + 0.25, 3))
   }
 
-  const nextImage = () => {
-    setCurrentImageIndex((prev) => (prev + 1) % selectedImages.length)
+  const zoomOut = () => {
+    setZoomLevel((prev) => Math.max(prev - 0.25, 0.5))
   }
 
-  const prevImage = () => {
-    setCurrentImageIndex((prev) => (prev - 1 + selectedImages.length) % selectedImages.length)
+  const resetZoom = () => {
+    setZoomLevel(1)
+    setImagePosition({ x: 0, y: 0 })
+  }
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (zoomLevel > 1) {
+      setIsDragging(true)
+      setDragStart({
+        x: e.clientX - imagePosition.x,
+        y: e.clientY - imagePosition.y,
+      })
+    }
+  }
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (isDragging && zoomLevel > 1) {
+      setImagePosition({
+        x: e.clientX - dragStart.x,
+        y: e.clientY - dragStart.y,
+      })
+    }
+  }
+
+  const handleMouseUp = () => {
+    setIsDragging(false)
   }
 
   const formatDateTime = (dateString: string) => {
@@ -302,6 +331,20 @@ export default function EducationalSystem() {
       hour: "2-digit",
       minute: "2-digit",
     })
+  }
+
+  const openImageModal = (images: string[], index: number) => {
+    setSelectedImages(images)
+    setCurrentImageIndex(index)
+    setIsImageModalOpen(true)
+  }
+
+  const prevImage = () => {
+    setCurrentImageIndex((prev) => (prev > 0 ? prev - 1 : prev))
+  }
+
+  const nextImage = () => {
+    setCurrentImageIndex((prev) => (prev < selectedImages.length - 1 ? prev + 1 : prev))
   }
 
   return (
@@ -640,16 +683,63 @@ export default function EducationalSystem() {
       <Dialog open={isImageModalOpen} onOpenChange={setIsImageModalOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] p-0 bg-gray-900 border-gray-700">
           <DialogHeader className="p-6 pb-0">
-            <DialogTitle className="text-center text-white">
-              Galería de Imágenes ({currentImageIndex + 1} de {selectedImages.length})
+            <DialogTitle className="text-center text-white flex items-center justify-between">
+              <span>
+                Galería de Imágenes ({currentImageIndex + 1} de {selectedImages.length})
+              </span>
+              <div className="flex items-center gap-2 p-3">
+                <Button
+                  onClick={zoomOut}
+                  variant="secondary"
+                  size="sm"
+                  className="bg-gray-800/80 hover:bg-gray-700 text-white border-gray-600"
+                  disabled={zoomLevel <= 0.5}
+                >
+                  <ZoomOut className="w-4 h-4" />
+                </Button>
+                <span className="text-sm text-gray-300 min-w-[60px] text-center">{Math.round(zoomLevel * 100)}%</span>
+                <Button
+                  onClick={zoomIn}
+                  variant="secondary"
+                  size="sm"
+                  className="bg-gray-800/80 hover:bg-gray-700 text-white border-gray-600"
+                  disabled={zoomLevel >= 3}
+                >
+                  <ZoomIn className="w-4 h-4" />
+                </Button>
+                <Button
+                  onClick={resetZoom}
+                  variant="secondary"
+                  size="sm"
+                  className="bg-gray-800/80 hover:bg-gray-700 text-white border-gray-600"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                </Button>
+              </div>
             </DialogTitle>
           </DialogHeader>
-          <div className="relative p-6">
-            <img
-              src={selectedImages[currentImageIndex] || "/placeholder.svg"}
-              alt={`Imagen ${currentImageIndex + 1}`}
-              className="w-full max-h-[60vh] object-contain rounded-lg"
-            />
+          <div
+            className="relative p-6 overflow-hidden"
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseUp}
+          >
+            <div className="flex items-center justify-center min-h-[60vh]">
+              <img
+                src={selectedImages[currentImageIndex] || "/placeholder.svg"}
+                alt={`Imagen ${currentImageIndex + 1}`}
+                className={`max-h-[60vh] object-contain rounded-lg transition-transform duration-200 ${
+                  zoomLevel > 1 ? "cursor-grab" : "cursor-default"
+                } ${isDragging ? "cursor-grabbing" : ""}`}
+                style={{
+                  transform: `scale(${zoomLevel}) translate(${imagePosition.x / zoomLevel}px, ${imagePosition.y / zoomLevel}px)`,
+                  transformOrigin: "center center",
+                }}
+                onMouseDown={handleMouseDown}
+                draggable={false}
+              />
+            </div>
+
             {selectedImages.length > 1 && (
               <>
                 <Button

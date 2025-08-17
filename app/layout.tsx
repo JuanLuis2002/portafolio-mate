@@ -5,7 +5,7 @@ import './globals.css'
 
 export const metadata: Metadata = {
   title: 'Portafolio de Matemáticas',
-  description: 'portafolio de matematicas',
+  description: 'portafolio de matemáticas para el curso de 2025',
   generator: 'v0.app',
 }
 
